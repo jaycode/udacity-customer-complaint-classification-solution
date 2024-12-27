@@ -30,9 +30,7 @@ def describe_image(image_path, complaint, annotated_image_path,
 
     # Call the model to describe the image and identify key elements.
 
-    system_prompt = """
-You can only communicate in JSON.
-
+    system_prompt1 = """
 Respond with a JSON string that is formatted as follows:
 
 {
@@ -72,9 +70,6 @@ and a stain on its left sleeve:
         }
     }
 }
-
-Do not include anything other than the json string. In other words, the first character 
-of your output should be `{` and last character should be `}`.
 """
     prompt = """
 The image depicts a product that has issues in it.
@@ -83,7 +78,7 @@ identify the product, the issues, and locations of these issues.
 Additionally, here is the complaint from the customer, 
 to help you determine the locations of the issues:
 
-""" + complaint
+"""
 
     gptclient = AzureOpenAI(
         api_version=gpt_api_version,
@@ -106,12 +101,7 @@ to help you determine the locations of the issues:
         max_tokens=1024
     )
 
-    print("Output of 1st step:\n")
-    print(response.choices[0].message.content)
-
     system_prompt = """
-You can only communicate in JSON.
-
 Respond with a JSON string that is formatted as follows:
 
 {
@@ -128,31 +118,25 @@ of boxes (top-left and bottom-right positions). For example:
 ]
 
 The coordinates above will draw two boxes with the specified xy coordinates of these boxes.
-
-Do not include anything other than the json string. In other words, the first character 
-of your output should be `{` and last character should be `}`.
 """
 
     prompt = """
-I will pass you a JSON object that contains the object and issues. The "object" key contains
-a description of the object, and the "issues" key contains the issues. Each issue
-has its "location" and "size" keys to help you locate it on the image.
-
 Help me draw bounding box(es) indicating where the issue(s) is/are.
 
 Here are the steps to identify these bounding boxes:
-1. Determine the size of the uploaded image. The coordinates of these bounding
+1. First, determine the size of the uploaded image. The coordinates of these bounding
    boxes should not be outside of the image.
-2. Read the content of the "object" key. This will give you an idea of what the object is
-   and an overview of the issues.
-3. Read the content of the "issues" key. In this object, you will see the issues and their
-   respective locations and sizes. Use them to determine the coordinates on the image.
+2. Review the issues mentioned in the customer complaint, and find the top-left and 
+   bottom-right coordinates in the image that best reflect the locations mentioned in the issues.
+3. Overlay the coordinates on the image, and make another judgement to see if the
+   area covered by these coordinates indicate the mentioned issues. 
 4. Include the coordinates in your answer.
 
-Here is the JSON object:
+Here is a JSON object that contains the object and issues. The "object" key contains
+a description of the object, and the "issues" key contains the issues. Each issue
+has its "location" and "size" keys to help you locate it on the image.
 
-""" + response.choices[0].message.content
-    
+"""
     response = gptclient.chat.completions.create(
         model=gpt_deployment_name,
         messages=[
@@ -168,8 +152,6 @@ Here is the JSON object:
         max_tokens=1024
     )
 
-    print("Output of 2nd step:\n")
-    print(response.choices[0].message.content)
 
     # Create annotated image
     obj = json.loads(response.choices[0].message.content)
@@ -236,24 +218,24 @@ that's in perfect condition, but if that's not possible, I'd like a refund.
 Could you please assist me with this? Also, let me know if you need photos or 
 any additional details about the issue. Thanks!"""
 
-    description = describe_image("output/generated_image.jpg", complaint,
-        "output/annotated_image.png",
-        gpt_api_version=os.getenv("GPT_API_VERSION"),
-        gpt_api_key=os.getenv("GPT_API_KEY"),
-        gpt_endpoint=os.getenv("GPT_ENDPOINT"),
-        gpt_deployment_name=os.getenv("GPT_DEPLOYMENT_NAME"))
-    print(description)
+    # description = describe_image("output/generated_image.jpg", complaint,
+    #     "output/annotated_image.png",
+    #     gpt_api_version=os.getenv("GPT_API_VERSION"),
+    #     gpt_api_key=os.getenv("GPT_API_KEY"),
+    #     gpt_endpoint=os.getenv("GPT_ENDPOINT"),
+    #     gpt_deployment_name=os.getenv("GPT_DEPLOYMENT_NAME"))
+    # print(description)
 
-#     message="""{
-#     "message": "The product is a yellow rubber duck. The identified issue is as follows:\\n- There is a noticeable tear or hole on the side of the duck near its back.",
-#     "bounding_boxes": [
-#         [[450, 300], [700, 500]]
-#     ]
-# }"""
+    message="""{
+    "message": "The product is a yellow rubber duck. The identified issue is as follows:\\n- There is a noticeable tear or hole on the side of the duck near its back.",
+    "bounding_boxes": [
+        [[330, 280], [550, 450]]
+    ]
+}"""
 
-#     obj = json.loads(message)
-#     annotated_image_path = "output/annotated_image.png"
-#     draw_bounding_boxes("output/generated_image.jpg",
-#                         obj["bounding_boxes"], annotated_image_path)
+    obj = json.loads(message)
+    annotated_image_path = "output/annotated_image.png"
+    draw_bounding_boxes("output/generated_image.jpg",
+                        obj["bounding_boxes"], annotated_image_path)
 
 

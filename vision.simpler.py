@@ -29,59 +29,45 @@ def describe_image(image_path, complaint, annotated_image_path,
     data_url = local_image_to_data_url(image_path)
 
     # Call the model to describe the image and identify key elements.
-
     system_prompt = """
-You can only communicate in JSON.
-
 Respond with a JSON string that is formatted as follows:
 
 {
-    "object": [your response message],
-    "issues": {a list of issues, locations, and sizes in the image}
+    "message": [your response message],
+    "bounding_boxes": [a list of bounding boxes]
 }
 
-For example, if the image shows a shoe that has a tear on its tip, you may write:
+[a list of bounding boxes] is to be replaced with a list of coordinates
+of boxes (top-left and bottom-right positions). For example:
 
-{
-    "object": "A shoe that has a tear on its tip",
-    "issues": {
-        "tear": {
-            "location": "tip of the shoe",
-            "size" : "small"
-        }
-    }
-}
+[
+    [[0, 0], [20, 20]],
+    [[100, 100], [200, 200]],
+]
 
-As another example, consider a white shirt that has holes on its plackets and collar,
-and a stain on its left sleeve:
-
-{
-    "object": "A white shirt with holes on its plackets and collar, and a stain on its left sleeve",
-    "issues": {
-        "hole 1": {
-            "location": "plackets, near the chest area",
-            "size" : "big"
-        },
-        "hole 2": {
-            "location": "collar, left part",
-            "size" : "small"
-        },
-        "stain": {
-            "location": "left sleeve",
-            "size": "medium"
-        }
-    }
-}
+The coordinates above will draw two boxes with the specified xy coordinates of these boxes.
 
 Do not include anything other than the json string. In other words, the first character 
 of your output should be `{` and last character should be `}`.
 """
+
     prompt = """
 The image depicts a product that has issues in it.
-identify the product, the issues, and locations of these issues.
+identify the product and the issues. Use bullet points.
+
+Please also help me draw bounding box(es) indicating where the issue(s) is/are.
+
+Here are the steps to identify these bounding boxes:
+1. First, determine the size of the uploaded image. The coordinates of these bounding
+   boxes should not be outside of the image.
+2. Review the issues mentioned in the customer complaint, and find the top-left and 
+   bottom-right coordinates in the image that best reflect these issues.
+3. Overlay the coordinates on the image, and make another judgement to see if the
+   area covered by these coordinates indicate the mentioned issues. 
+4. Include the coordinates in your answer.
 
 Additionally, here is the complaint from the customer, 
-to help you determine the locations of the issues:
+to help you determine the locations of the boxes:
 
 """ + complaint
 
@@ -106,72 +92,12 @@ to help you determine the locations of the issues:
         max_tokens=1024
     )
 
-    print("Output of 1st step:\n")
-    print(response.choices[0].message.content)
-
-    system_prompt = """
-You can only communicate in JSON.
-
-Respond with a JSON string that is formatted as follows:
-
-{
-    "message": [your response message],
-    "bounding_boxes": [a list of bounding boxes]
-}
-
-[a list of bounding boxes] is to be replaced with a list of coordinates
-of boxes (top-left and bottom-right positions). For example:
-
-[
-    [[0, 0], [20, 20]],
-    [[100, 100], [200, 200]],
-]
-
-The coordinates above will draw two boxes with the specified xy coordinates of these boxes.
-
-Do not include anything other than the json string. In other words, the first character 
-of your output should be `{` and last character should be `}`.
-"""
-
-    prompt = """
-I will pass you a JSON object that contains the object and issues. The "object" key contains
-a description of the object, and the "issues" key contains the issues. Each issue
-has its "location" and "size" keys to help you locate it on the image.
-
-Help me draw bounding box(es) indicating where the issue(s) is/are.
-
-Here are the steps to identify these bounding boxes:
-1. Determine the size of the uploaded image. The coordinates of these bounding
-   boxes should not be outside of the image.
-2. Read the content of the "object" key. This will give you an idea of what the object is
-   and an overview of the issues.
-3. Read the content of the "issues" key. In this object, you will see the issues and their
-   respective locations and sizes. Use them to determine the coordinates on the image.
-4. Include the coordinates in your answer.
-
-Here is the JSON object:
-
-""" + response.choices[0].message.content
-    
-    response = gptclient.chat.completions.create(
-        model=gpt_deployment_name,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": data_url}}
-                ]
-            }
-        ],
-        max_tokens=1024
-    )
-
-    print("Output of 2nd step:\n")
-    print(response.choices[0].message.content)
-
     # Create annotated image
+    print("prompt:")
+    print(prompt)
+
+    print("output:")
+    print(response.choices[0].message.content)
     obj = json.loads(response.choices[0].message.content)
     draw_bounding_boxes(image_path, obj["bounding_boxes"], annotated_image_path)
 
@@ -247,7 +173,7 @@ any additional details about the issue. Thanks!"""
 #     message="""{
 #     "message": "The product is a yellow rubber duck. The identified issue is as follows:\\n- There is a noticeable tear or hole on the side of the duck near its back.",
 #     "bounding_boxes": [
-#         [[450, 300], [700, 500]]
+#         [[330, 280], [550, 450]]
 #     ]
 # }"""
 
