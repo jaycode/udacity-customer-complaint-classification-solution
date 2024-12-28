@@ -1,10 +1,10 @@
-# Customer Complaint Classification Starter Project
+# Customer Complaint Classification Project
 
 ## Overview
 
-This starter project aims to help you learn and implement a generative AI-based solution for classifying customer complaints. The project involves various steps such as transcribing customer audio complaints, generating images, describing and annotating those images, and finally classifying the complaints into appropriate categories. By working through this project, you will get hands-on experience with multiple AI models and the practical integration of generative AI in a real-world scenario.
+The project involves various steps such as transcribing customer audio complaints, generating images, describing and annotating those images, and finally classifying the complaints into appropriate categories. By working through this project, you will get hands-on experience with multiple AI models and the practical integration of generative AI in a real-world scenario.
 
-In addition to executing each of these steps, it is important to store the intermediate results after each stage. This will help in project evaluation and debugging, as well as allow you to understand how each step contributes to the final outcome.
+In addition to executing each of these steps, the intermediate results are stored after each stage. This will help in project evaluation and debugging, as well as allow us to understand how each step contributes to the final outcome.
 
 1. **Transcribing Customer Audio Complaint**:
 
@@ -28,8 +28,6 @@ In addition to executing each of these steps, it is important to store the inter
 
 6. **Classify Complaint into Category/Subcategory Pair**:
    - Use the generated image description and the catalog metadata to classify the complaint into a category and subcategory. This is handled by the `gpt.py` module.
-
-***It is recommended to store the intermediate results after this step as well, to ensure that all stages of the process can be reviewed for evaluation.***
 
 ## File Structure
 
@@ -66,12 +64,6 @@ The project consists of the following files:
 - Basic understanding of Python programming.
 - Familiarity with machine learning concepts and generative AI.
 - Recent reading or coursework on generative AI models
-
-## Helpful Tips
-
-- **Start Small**: Focus on completing one function at a time. Test each module individually before integrating it into the full workflow.
-- **Experiment with Prompts**: The quality of the generated image or classification can depend heavily on how the prompt is formulated. Experiment with different phrasing.
-- **API Documentation**: Refer to the OpenAI API documentation as you work through the project to understand what parameters are needed for each API call.
 
 ## Resources
 

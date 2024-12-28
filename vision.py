@@ -28,62 +28,22 @@ def describe_image(image_path, complaint, annotated_image_path,
     # Load the generated image.
     data_url = local_image_to_data_url(image_path)
 
-    # Call the model to describe the image and identify key elements.
+    # Call the model to describe the image and identify key elements.   
+    system_prompt = "You are a helpful assistant"
 
-    system_prompt = """
-You can only communicate in JSON.
-
-Respond with a JSON string that is formatted as follows:
+    prompt = """Respond with a JSON string that is formatted as follows:
 
 {
-    "object": [your response message],
-    "issues": {a list of issues, locations, and sizes in the image}
+    "message": [your response message],
+    "bounding_box": [x1,y1,x2,y2] #bounding box localizing the reported issue
 }
+Start and end with json, no additional text.
 
-For example, if the image shows a shoe that has a tear on its tip, you may write:
+Bounding boxes gives coordinates to annotate the customer issues with the product. Each coordinate is in (x,y) format. The image size is (width, height) = (1024x1024). Each co-ordinate is represented as (x,y). (0,0) is the top-left point.
 
-{
-    "object": "A shoe that has a tear on its tip",
-    "issues": {
-        "tear": {
-            "location": "tip of the shoe",
-            "size" : "small"
-        }
-    }
-}
+Replace [your response message] with a description of the image.
 
-As another example, consider a white shirt that has holes on its plackets and collar,
-and a stain on its left sleeve:
-
-{
-    "object": "A white shirt with holes on its plackets and collar, and a stain on its left sleeve",
-    "issues": {
-        "hole 1": {
-            "location": "plackets, near the chest area",
-            "size" : "big"
-        },
-        "hole 2": {
-            "location": "collar, left part",
-            "size" : "small"
-        },
-        "stain": {
-            "location": "left sleeve",
-            "size": "medium"
-        }
-    }
-}
-
-Do not include anything other than the json string. In other words, the first character 
-of your output should be `{` and last character should be `}`.
-"""
-    prompt = """
-The image depicts a product that has issues in it.
-identify the product, the issues, and locations of these issues.
-
-Additionally, here is the complaint from the customer, 
-to help you determine the locations of the issues:
-
-""" + complaint
+Issue: """ + complaint
 
     gptclient = AzureOpenAI(
         api_version=gpt_api_version,
@@ -105,78 +65,16 @@ to help you determine the locations of the issues:
         ],
         max_tokens=1024
     )
-
-    print("Output of 1st step:\n")
-    print(response.choices[0].message.content)
-
-    system_prompt = """
-You can only communicate in JSON.
-
-Respond with a JSON string that is formatted as follows:
-
-{
-    "message": [your response message],
-    "bounding_boxes": [a list of bounding boxes]
-}
-
-[a list of bounding boxes] is to be replaced with a list of coordinates
-of boxes (top-left and bottom-right positions). For example:
-
-[
-    [[0, 0], [20, 20]],
-    [[100, 100], [200, 200]],
-]
-
-The coordinates above will draw two boxes with the specified xy coordinates of these boxes.
-
-Do not include anything other than the json string. In other words, the first character 
-of your output should be `{` and last character should be `}`.
-"""
-
-    prompt = """
-I will pass you a JSON object that contains the object and issues. The "object" key contains
-a description of the object, and the "issues" key contains the issues. Each issue
-has its "location" and "size" keys to help you locate it on the image.
-
-Help me draw bounding box(es) indicating where the issue(s) is/are.
-
-Here are the steps to identify these bounding boxes:
-1. Determine the size of the uploaded image. The coordinates of these bounding
-   boxes should not be outside of the image.
-2. Read the content of the "object" key. This will give you an idea of what the object is
-   and an overview of the issues.
-3. Read the content of the "issues" key. In this object, you will see the issues and their
-   respective locations and sizes. Use them to determine the coordinates on the image.
-4. Include the coordinates in your answer.
-
-Here is the JSON object:
-
-""" + response.choices[0].message.content
-    
-    response = gptclient.chat.completions.create(
-        model=gpt_deployment_name,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": data_url}}
-                ]
-            }
-        ],
-        max_tokens=1024
-    )
-
-    print("Output of 2nd step:\n")
-    print(response.choices[0].message.content)
+    msg = response.choices[0].message.content.replace("```json", "")
+    msg = msg.replace("```", "")
 
     # Create annotated image
-    obj = json.loads(response.choices[0].message.content)
-    draw_bounding_boxes(image_path, obj["bounding_boxes"], annotated_image_path)
+    obj = json.loads(msg)
+    bb = obj["bounding_box"]
+    draw_bounding_boxes(image_path, [[[bb[0], bb[1]], [bb[2], bb[3]]]], annotated_image_path)
 
     # Extract the description and return it.
-    return response.choices[0].message.content
+    return msg
 
 def local_image_to_data_url(image_path):
     mime_type, _ = guess_type(image_path)
@@ -243,17 +141,4 @@ any additional details about the issue. Thanks!"""
         gpt_endpoint=os.getenv("GPT_ENDPOINT"),
         gpt_deployment_name=os.getenv("GPT_DEPLOYMENT_NAME"))
     print(description)
-
-#     message="""{
-#     "message": "The product is a yellow rubber duck. The identified issue is as follows:\\n- There is a noticeable tear or hole on the side of the duck near its back.",
-#     "bounding_boxes": [
-#         [[450, 300], [700, 500]]
-#     ]
-# }"""
-
-#     obj = json.loads(message)
-#     annotated_image_path = "output/annotated_image.png"
-#     draw_bounding_boxes("output/generated_image.jpg",
-#                         obj["bounding_boxes"], annotated_image_path)
-
 

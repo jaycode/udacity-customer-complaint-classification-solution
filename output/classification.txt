@@ -1,0 +1,2 @@
+product,category,subcategory
+yellow rubber duck,Toys & Games,Action Figures & Dolls
